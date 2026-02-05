@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-masscan
+cvss
+nvdlib
+requests
+beautifulsoup4
+python-gvm
+python-owasp-zap-v2.4
+bandit
+wazuh-api-client
+defectdojo_api
