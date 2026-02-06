@@ -1,6 +1,9 @@
 import subprocess
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def run_bandit_scan(path):
     """
@@ -17,25 +20,20 @@ def run_bandit_scan(path):
 
     try:
         # Use subprocess to run bandit and capture its JSON output
-        command = ['bandit', '-r', path, '-f', 'json']
+        # Using -- to ensure path is not interpreted as a flag
+        command = ['bandit', '-r', '-f', 'json', '--', path]
         result = subprocess.run(command, capture_output=True, text=True, check=True)
         return json.loads(result.stdout)
     except subprocess.CalledProcessError as e:
-        return {"error": f"Bandit scan failed with error: {e.stderr}"}
+        logger.error(f"Bandit scan failed: {e.stderr}")
+        try:
+            return json.loads(e.stdout) # Bandit returns findings even on "failure" (non-zero exit code if findings exist)
+        except:
+            return {"error": f"Bandit scan failed with error: {e.stderr}"}
     except FileNotFoundError:
         return {"error": "Bandit command not found. Please ensure Bandit is installed and in your PATH."}
     except json.JSONDecodeError:
         return {"error": "Failed to decode Bandit JSON output."}
     except Exception as e:
+        logger.exception("An unexpected error occurred during Bandit scan")
         return {"error": f"An unexpected error occurred: {e}"}
-
-if __name__ == '__main__':
-    # Example usage: Replace '.' with a specific file or directory you want to scan.
-    # Note: For this example to work, you need to have Bandit installed (`pip install bandit`)
-    # and some Python code in the current directory or specified path.
-    test_path = './' 
-    if os.path.exists(test_path):
-        findings = run_bandit_scan(test_path)
-        print(json.dumps(findings, indent=4))
-    else:
-        print(f"Path not found: {test_path}")

@@ -1,6 +1,9 @@
 import masscan
 import subprocess
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 def is_masscan_installed():
     """Check if masscan is installed and in the system's PATH."""
@@ -23,17 +26,14 @@ def scan_target(target, ports='0-65535', rate=1000):
         dict: A dictionary containing the scan results, or an error message.
     """
     if not is_masscan_installed():
+        logger.error("Masscan is not installed or not in the system's PATH.")
         return {"error": "Masscan is not installed or not in the system's PATH."}
 
     scanner = masscan.PortScanner()
     try:
+        logger.info(f"Starting masscan on {target} ports {ports} at rate {rate}")
         scanner.scan(target, ports=ports, arguments=f'--rate={rate}')
         return json.loads(scanner.scan_result)
     except Exception as e:
+        logger.exception(f"An error occurred during masscan on {target}")
         return {"error": f"An error occurred during the scan: {e}"}
-
-if __name__ == '__main__':
-    # Example usage
-    target_ip = '127.0.0.1'  # Replace with a target you are authorized to scan
-    scan_results = scan_target(target_ip, ports='80,443', rate=100)
-    print(scan_results)

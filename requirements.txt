@@ -10,3 +10,6 @@ python-owasp-zap-v2.4
 bandit
 wazuh-api-client
 defectdojo_api
+httpx
+pytest
+pytest-asyncio

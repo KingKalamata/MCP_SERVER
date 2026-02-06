@@ -1,6 +1,9 @@
 from zapv2 import ZAPv2
 import time
+import logging
 from .. import config
+
+logger = logging.getLogger(__name__)
 
 def run_zap_active_scan(target_url):
     """
@@ -19,14 +22,14 @@ def run_zap_active_scan(target_url):
         }, apikey=config.ZAP_API_KEY)
 
         # Start an active scan
-        print(f"Starting ZAP active scan on {target_url}...")
+        logger.info(f"Starting ZAP active scan on {target_url}...")
         scan_id = zap.ascan.scan(target_url)
 
         # Wait for the scan to complete
         while int(zap.ascan.status(scan_id)) < 100:
-            print(f"ZAP Active Scan progress: {zap.ascan.status(scan_id)}%")
+            logger.info(f"ZAP Active Scan progress: {zap.ascan.status(scan_id)}%")
             time.sleep(5)
-        print("ZAP Active Scan complete.")
+        logger.info("ZAP Active Scan complete.")
 
         # Retrieve alerts
         alerts = zap.core.alerts()
@@ -45,12 +48,5 @@ def run_zap_active_scan(target_url):
             })
         return formatted_alerts
     except Exception as e:
+        logger.exception("An error occurred during ZAP scan")
         return {"error": f"An error occurred during ZAP scan: {e}"}
-
-if __name__ == '__main__':
-    # Example usage (requires ZAP to be running in daemon mode with API key configured)
-    # target = "http://juice-shop.herokuapp.com"  # Replace with a target you are authorized to scan
-    # alerts = run_zap_active_scan(target)
-    # import json
-    # print(json.dumps(alerts, indent=4))
-    pass

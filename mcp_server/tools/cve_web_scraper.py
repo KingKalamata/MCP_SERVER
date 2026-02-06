@@ -1,7 +1,10 @@
-import requests
+import httpx
 from bs4 import BeautifulSoup
+import logging
 
-def search_cve_mitre(keyword):
+logger = logging.getLogger(__name__)
+
+async def search_cve_mitre(keyword):
     """
     Searches for CVEs on cve.mitre.org based on a keyword.
 
@@ -13,8 +16,10 @@ def search_cve_mitre(keyword):
     """
     url = f"https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword={keyword}"
     try:
-        response = requests.get(url)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url)
+            response.raise_for_status()
+
         soup = BeautifulSoup(response.content, 'html.parser')
         
         cve_list = []
@@ -32,15 +37,9 @@ def search_cve_mitre(keyword):
                 cve_list.append({"cve_id": cve_id, "description": description})
         
         return cve_list
-    except requests.exceptions.RequestException as e:
+    except httpx.HTTPError as e:
+        logger.error(f"HTTP error occurred while searching CVE: {e}")
         return {"error": f"An error occurred: {e}"}
-
-if __name__ == '__main__':
-    # Example usage
-    keyword = 'apache'
-    cves = search_cve_mitre(keyword)
-    if isinstance(cves, list):
-        for cve in cves:
-            print(cve)
-    else:
-        print(cves)
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        return {"error": f"An unexpected error occurred: {e}"}
