@@ -1,8 +1,11 @@
-import requests
+import httpx
 from bs4 import BeautifulSoup
 import urllib.parse
+import logging
 
-def search_vulnerability_resolution(query):
+logger = logging.getLogger(__name__)
+
+async def search_vulnerability_resolution(query):
     """
     Searches for resolutions to vulnerabilities based on a query (CVE ID or description).
 
@@ -14,9 +17,6 @@ def search_vulnerability_resolution(query):
     """
     search_results = []
     
-    # Strategy 1: Search on common security advisory sites (example: securityweek.com or a generic google search)
-    # This is a very basic example and would need to be expanded significantly
-    
     # Generic Google search for resolution
     encoded_query = urllib.parse.quote_plus(f"{query} vulnerability resolution patch")
     google_search_url = f"https://www.google.com/search?q={encoded_query}"
@@ -26,31 +26,25 @@ def search_vulnerability_resolution(query):
     }
 
     try:
-        response = requests.get(google_search_url, headers=headers)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(google_search_url, headers=headers)
+            response.raise_for_status()
+
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Google search results often have 'a' tags with class 'result-link' or similar
-        # This can change, so it might need adjustment
-        for g_result in soup.find_all('div', class_='tF2CMy'): # This class might vary
+        # Google search results often have 'a' tags with class 'tF2CMy'
+        for g_result in soup.find_all('div', class_='tF2CMy'):
             link = g_result.find('a')
             if link and 'href' in link.attrs:
                 title_tag = g_result.find('h3')
                 title = title_tag.text if title_tag else link.text
                 search_results.append({"title": title, "url": link['href']})
 
-    except requests.exceptions.RequestException as e:
+    except httpx.HTTPError as e:
+        logger.error(f"Failed to perform Google search: {e}")
         search_results.append({"error": f"Failed to perform Google search: {e}"})
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during resolution search: {e}")
+        search_results.append({"error": f"An unexpected error occurred: {e}"})
     
     return search_results
-
-if __name__ == '__main__':
-    # Example usage
-    vulnerability_query = 'CVE-2023-2825'  # Example CVE ID
-    resolutions = search_vulnerability_resolution(vulnerability_query)
-    import json
-    print(json.dumps(resolutions, indent=4))
-
-    vulnerability_query_desc = 'Apache Log4j RCE'
-    resolutions_desc = search_vulnerability_resolution(vulnerability_query_desc)
-    print(json.dumps(resolutions_desc, indent=4))

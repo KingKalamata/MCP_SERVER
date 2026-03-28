@@ -1,5 +1,8 @@
-from defectdojo_api import DefectDojoAPI
+from defectdojo_api.defectdojo import DefectDojoAPI
+import logging
 from .. import config
+
+logger = logging.getLogger(__name__)
 
 def upload_scan_result(scan_file_path, product_name, engagement_name, scan_type, auto_create_context=True):
     """
@@ -25,33 +28,39 @@ def upload_scan_result(scan_file_path, product_name, engagement_name, scan_type,
 
         # Ensure product and engagement exist
         product_id = None
-        products = dd.list_products(name=product_name).get('results')
+        products_response = dd.list_products(name=product_name)
+        products = products_response.data.get('results') if products_response.success else None
+
         if products:
             product_id = products[0]['id']
         elif auto_create_context:
-            product = dd.create_product(product_name, description=f"Product for {product_name}")
-            product_id = product['id']
+            product_response = dd.create_product(product_name, description=f"Product for {product_name}", prod_type=1)
+            if product_response.success:
+                product_id = product_response.data['id']
 
         if not product_id:
-            return {"error": f"Product '{product_name}' not found and auto_create_context is False."}
+            return {"error": f"Product '{product_name}' not found and could not be created."}
 
         engagement_id = None
-        engagements = dd.list_engagements(product=product_id, name=engagement_name).get('results')
+        engagements_response = dd.list_engagements(product=product_id, name=engagement_name)
+        engagements = engagements_response.data.get('results') if engagements_response.success else None
+
         if engagements:
             engagement_id = engagements[0]['id']
         elif auto_create_context:
-            engagement = dd.create_engagement(
+            engagement_response = dd.create_engagement(
                 name=engagement_name,
                 product=product_id,
-                lead=1,  # You might need to set a valid lead user ID
+                lead=1,
                 status='In Progress',
-                target_start='2024-01-01',  # Placeholder dates
+                target_start='2024-01-01',
                 target_end='2024-12-31'
             )
-            engagement_id = engagement['id']
+            if engagement_response.success:
+                engagement_id = engagement_response.data['id']
         
         if not engagement_id:
-            return {"error": f"Engagement '{engagement_name}' not found and auto_create_context is False."}
+            return {"error": f"Engagement '{engagement_name}' not found and could not be created."}
 
         # Upload the scan report
         with open(scan_file_path, 'rb') as scan_file:
@@ -63,23 +72,7 @@ def upload_scan_result(scan_file_path, product_name, engagement_name, scan_type,
                 verified=False,
                 tags=['mcp-scanner']
             )
-        return response
+        return response.data if response.success else {"error": response.message}
     except Exception as e:
+        logger.exception("An error occurred during DefectDojo upload")
         return {"error": f"An error occurred during DefectDojo upload: {e}"}
-
-if __name__ == '__main__':
-    # Example usage:
-    # Requires a running DefectDojo instance and a valid API key.
-    # Create a dummy scan file for testing
-    # with open("dummy_bandit_scan.json", "w") as f:
-    #     f.write('{"scan_type": "Bandit Scan", "findings": []}')
-
-    # result = upload_scan_result(
-    #     scan_file_path="dummy_bandit_scan.json",
-    #     product_name="Test Product",
-    #     engagement_name="Test Engagement",
-    #     scan_type="Bandit Scan"
-    # )
-    # import json
-    # print(json.dumps(result, indent=4))
-    pass
